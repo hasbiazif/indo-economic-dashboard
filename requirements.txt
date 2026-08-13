@@ -1,2 +1,4 @@
 wbgapi
 pandas
+ipykernel
+matplotlib
