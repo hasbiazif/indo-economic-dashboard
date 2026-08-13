@@ -2,3 +2,5 @@ wbgapi
 pandas
 ipykernel
 matplotlib
+fastapi
+uvicorn[standard]
