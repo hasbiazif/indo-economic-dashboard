@@ -1,5 +1,6 @@
 import pandas as pd
 import wbgapi as wb
+from functools import lru_cache
 
 INDICATORS = {
     "gdp_growth": "NY.GDP.MKTP.KD.ZG",
@@ -34,6 +35,7 @@ def fetch_indicator(indicator_code, country="IDN", start_year=None, end_year=Non
     
     return df
 
+@lru_cache
 def fetch_all_mvp():
     combined_df = None
     
