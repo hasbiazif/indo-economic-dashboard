@@ -18,6 +18,22 @@ data = fetch_data()
 
 kolom_indikator = [col for col in data.columns if col != "year"]
 
+kolom_layout = st.columns(4)
+
+for i, ind in enumerate(kolom_indikator[:4]):
+    data_bersih = data[ind].dropna()
+    
+    nilai_terbaru = data_bersih.iloc[-1]
+    nilai_sebelumnya = data_bersih.iloc[-2]
+    
+    delta = nilai_terbaru - nilai_sebelumnya
+    
+    kolom_layout[i].metric(
+        label=ind, 
+        value=round(nilai_terbaru, 2), 
+        delta=round(delta, 2)
+    )
+
 indikator = st.selectbox("Pilih Indikator:", kolom_indikator)
 
 fig = px.line(data, x="year", y=indikator)
