@@ -1,11 +1,12 @@
 import json
 from fastapi import FastAPI, HTTPException
 from data_fetchers.worldbank_fetcher import fetch_all_mvp, INDICATORS
+from api.schemas import IndicatorRecord
 
 app = FastAPI()
 
 # endpoint 1
-@app.get("/indicators")
+@app.get("/indicators", response_model=list[IndicatorRecord])
 def get_all_indicators(start_year: int = 2000, end_year: int | None = None):
     df = fetch_all_mvp()
     df = df[df["year"] >= start_year]
