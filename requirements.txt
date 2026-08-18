@@ -4,3 +4,5 @@ ipykernel
 matplotlib
 fastapi
 uvicorn[standard]
+streamlit
+plotly
