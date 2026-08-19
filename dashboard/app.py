@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 API_URL = "http://localhost:8000"
 
@@ -12,12 +13,20 @@ LABEL_ID = {
     "poverty":      "Kemiskinan (%)",
 }
 
+LAYAK_PREDIKSI = ["gdp_growth", "inflation", "unemployment"]
+
 st.set_page_config(page_title="Dashboard World Bank", layout="wide")
 st.title("Visualisasi Dashboard World Bank")
 
 @st.cache_data(ttl=3600)
 def fetch_data():
     response = requests.get(f"{API_URL}/indicators", params={"start_year": 2000})
+    response.raise_for_status()
+    return pd.DataFrame(response.json())
+
+@st.cache_data
+def fetch_forecast(indikator_key: str):
+    response = requests.get(f"{API_URL}/forecast/{indikator_key}")
     response.raise_for_status()
     return pd.DataFrame(response.json())
 
@@ -57,7 +66,7 @@ for i, ind in enumerate(kolom_indikator[:4]):
         )
 
 # TAB
-tab_ringkasan, tab_semua = st.tabs(["Ringkasan", "Semua Indikator"])
+tab_ringkasan, tab_semua, tab_prediksi = st.tabs(["Ringkasan", "Semua Indikator", "Prediksi"])
 
 # TAB 1
 with tab_ringkasan:
@@ -76,6 +85,7 @@ with tab_ringkasan:
     st.plotly_chart(fig, use_container_width=True)
     st.caption("Sumber: World Bank (via API) • update berkala")
 
+# TAB 2
 with tab_semua:
     kolom_kiri, kolom_kanan = st.columns(2)
     
@@ -90,3 +100,72 @@ with tab_semua:
             fig_kecil = px.line(data_filter, x="year", y=ind, markers=True)
             fig_kecil.update_layout(title_text=LABEL_ID[ind], height=300)
             st.plotly_chart(fig_kecil, use_container_width=True)
+
+
+# TAB 3
+with tab_prediksi:
+    opsi_label = [LABEL_ID[k] for k in LAYAK_PREDIKSI]
+    pilihan_label2 = st.selectbox("Pilih Indikator :", opsi_label)
+
+    key_terpilih = [k for k, v in LABEL_ID.items() if v == pilihan_label2][0]
+
+    try:
+        fc = fetch_forecast(key_terpilih)
+
+        fc_depan = fc[fc["year"] >= 2025]
+
+        df_historis = data_filter[["year", key_terpilih]].dropna()
+
+        fig = go.Figure()
+
+        # a. HISTORIS
+        fig.add_trace(go.Scatter(
+            x=df_historis["year"],
+            y=df_historis[key_terpilih],
+            mode="lines+markers",
+            name="Data Historis",
+            line=dict(color="blue", width=2)
+        ))
+
+        # b. BATAS BAWAH
+        fig.add_trace(go.Scatter(
+            x=fc_depan["year"],
+            y=fc_depan["yhat_lower"],
+            mode="lines",
+            name="Batas Bawah",
+            line=dict(width=0), # Garis dibuat tidak terlihat
+            showlegend=False
+        ))
+
+        # c. BATAS ATAS
+        fig.add_trace(go.Scatter(
+            x=fc_depan["year"],
+            y=fc_depan["yhat_upper"],
+            mode="lines",
+            name="Rentang Kepercayaan",
+            line=dict(width=0),
+            fill="tonexty", 
+            fillcolor="rgba(255, 165, 0, 0.2)" # Nilai 0.2 adalah tingkat transparansi
+        ))
+
+        # d. PREDIKSI
+        fig.add_trace(go.Scatter(
+            x=fc_depan["year"],
+            y=fc_depan["yhat"],
+            mode="lines+markers",
+            name="Prediksi (Prophet)",
+            line=dict(color="orange", width=2, dash="dash")
+        ))
+
+        fig.update_layout(
+            title=f"Prediksi {pilihan_label2} - Indonesia",
+            xaxis_title="Tahun",
+            yaxis_title="Nilai",
+            hovermode="x unified" # Memunculkan satu kotak tooltip untuk semua garis di tahun yang sama
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Terjadi kesalahan saat memuat prediksi: {e}")
+        
