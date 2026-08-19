@@ -1,5 +1,6 @@
 services:
     api:
+      image: econ-api
       container_name: backend_eco_api
       build:
         context: .
@@ -8,6 +9,7 @@ services:
         - "8000:8000"
 
     dashboard:
+      image: econ-dash
       container_name: frontend_eco_dash
       build:
         context: .
