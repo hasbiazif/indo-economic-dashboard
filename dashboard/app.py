@@ -20,15 +20,19 @@ st.set_page_config(page_title="Dashboard World Bank", layout="wide")
 st.title("Visualisasi Dashboard World Bank")
 
 @st.cache_data(ttl=3600, show_spinner="Mengambil data indikator...")
-def fetch_data(url_api: str):
+def fetch_data():
     try:
         response = requests.get(f"{API_URL}/indicators", params={"start_year": 2000})
         response.raise_for_status()
         return pd.DataFrame(response.json())
 
-    except:
-        st.error(f"Gagal mengambil data dari server API: {e}")
-        return pd.DataFrame()
+    except requests.exceptions.RequestException:
+        try:
+            df_fallback = pd.read_parquet("data/snapshot_indicators.parquet")
+            return df_fallback
+
+        except Exception as ex:
+            return pd.DataFrame()
 
 @st.cache_data(show_spinner="Mengambil data prediksi...")
 def fetch_forecast(indikator_key: str):
@@ -37,16 +41,13 @@ def fetch_forecast(indikator_key: str):
         response.raise_for_status()
         return pd.DataFrame(response.json())
     
-    except Exception as e:
-        st.warning(f"Server API tidak merespons. Memuat data cadangan lokal...")
-
+    except requests.exceptions.RequestException:
         try:
-            df_fallback = pd.read_parquet("data/forecast_combined.parquet")
+            df_fallback = pd.read_parquet("data/snapshot_forecasts.parquet")
             df_terfilter = df_fallback[df_fallback["indicator"] == indikator_key]
             return df_terfilter
 
-        except Exception as ex:
-            st.error(f"Gagal memuat data cadangan: {ex}")
+        except Exception as e:
             return pd.DataFrame()
 
 data = fetch_data()
@@ -101,7 +102,7 @@ with tab_ringkasan:
     fig = px.line(data_filter, x="year", y=indikator_asli, markers=True)
     fig.update_layout(title_text=f"Tren {pilihan_label} - Indonesia")
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption("Sumber: World Bank (via API) • update berkala")
 
 # TAB 2
@@ -118,7 +119,7 @@ with tab_semua:
         with kolom_target:
             fig_kecil = px.line(data_filter, x="year", y=ind, markers=True)
             fig_kecil.update_layout(title_text=LABEL_ID[ind], height=300)
-            st.plotly_chart(fig_kecil, use_container_width=True)
+            st.plotly_chart(fig_kecil, width="stretch")
 
 
 # TAB 3
