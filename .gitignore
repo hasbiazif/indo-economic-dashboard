@@ -9,4 +9,3 @@ cache/
 .pytest_cache/
 .DS_Store
 Thumbs.db
-data/
