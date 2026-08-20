@@ -19,17 +19,35 @@ LAYAK_PREDIKSI = ["gdp_growth", "inflation", "unemployment"]
 st.set_page_config(page_title="Dashboard World Bank", layout="wide")
 st.title("Visualisasi Dashboard World Bank")
 
-@st.cache_data(ttl=3600)
-def fetch_data():
-    response = requests.get(f"{API_URL}/indicators", params={"start_year": 2000})
-    response.raise_for_status()
-    return pd.DataFrame(response.json())
+@st.cache_data(ttl=3600, show_spinner="Mengambil data indikator...")
+def fetch_data(url_api: str):
+    try:
+        response = requests.get(f"{API_URL}/indicators", params={"start_year": 2000})
+        response.raise_for_status()
+        return pd.DataFrame(response.json())
 
-@st.cache_data
+    except:
+        st.error(f"Gagal mengambil data dari server API: {e}")
+        return pd.DataFrame()
+
+@st.cache_data(show_spinner="Mengambil data prediksi...")
 def fetch_forecast(indikator_key: str):
-    response = requests.get(f"{API_URL}/forecast/{indikator_key}")
-    response.raise_for_status()
-    return pd.DataFrame(response.json())
+    try:
+        response = requests.get(f"{API_URL}/forecast/{indikator_key}")
+        response.raise_for_status()
+        return pd.DataFrame(response.json())
+    
+    except Exception as e:
+        st.warning(f"Server API tidak merespons. Memuat data cadangan lokal...")
+
+        try:
+            df_fallback = pd.read_parquet("data/forecast_combined.parquet")
+            df_terfilter = df_fallback[df_fallback["indicator"] == indikator_key]
+            return df_terfilter
+
+        except Exception as ex:
+            st.error(f"Gagal memuat data cadangan: {ex}")
+            return pd.DataFrame()
 
 data = fetch_data()
 
@@ -165,7 +183,7 @@ with tab_prediksi:
             hovermode="x unified" # Memunculkan satu kotak tooltip untuk semua garis di tahun yang sama
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     except Exception as e:
         st.error(f"Terjadi kesalahan saat memuat prediksi: {e}")
